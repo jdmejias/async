@@ -90,12 +90,8 @@ docker-compose exec api sh
 - Aunque `api` y `worker` usan la misma imagen como base, cada servicio se ejecuta con un comando distinto — esto permite separar claramente responsabilidades y escalado.
 - Si cambias el esquema de la base de datos considera añadir migraciones y un paso de inicialización.
 
-**Contacto / Contact**
-- Autor / Author: Nestor Ortiz (documentado según su comentario).
+
 
 ---
 
-Si deseas, puedo:
-- Añadir ejemplos de `.env` concretos (sin credenciales reales).
-- Incluir instrucciones de migraciones de base de datos.
-- Crear un `README` más corto para despliegue en producción.
+
