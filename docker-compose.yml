@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  rabbit:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  api:
+    build: .
+    env_file:
+      - .env.example
+    depends_on:
+      - db
+      - rabbit
+    ports:
+      - "8000:8000"
+    command: uvicorn api:app --host 0.0.0.0 --port 8000
+
+  worker:
+    build: .
+    env_file:
+      - .env.example
+    depends_on:
+      - db
+      - rabbit
+    command: python worker.py
+
+volumes:
+  db_data:
