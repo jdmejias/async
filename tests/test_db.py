@@ -10,6 +10,7 @@ import db
 
 
 class FakeCursor:
+    """Mock database cursor for testing database query execution without a real database."""
     def __init__(self):
         self.queries = []
         self.fetchone_result = None
@@ -28,6 +29,7 @@ class FakeCursor:
 
 
 class FakeConn:
+    """Mock database connection for simulating transaction behavior and cursor management in tests."""
     def __init__(self, cursor):
         self._cursor = cursor
         self.committed = False

@@ -1,97 +1,108 @@
-**Proyecto: Async Demo / Async Demo Project**
+**IOT Async Request Reply**
 
-**Descripción / Description**
-- **ES:** Proyecto para mostrar una arquitectura asíncrona con microservicios: una API HTTP, un worker de tareas en segundo plano, una base de datos PostgreSQL y un broker RabbitMQ.
-- **EN:** project demonstrating an asynchronous microservice architecture: an HTTP API, a background worker, a PostgreSQL database, and a RabbitMQ broker.
+- **Authors:** Nestor Ortiz, Jhon Mejías
+- **Description:** Minimal demo of an asynchronous request–reply pattern: an HTTP API, background worker, PostgreSQL and RabbitMQ.
 
-**Arquitectura y Contenedores / Architecture & Containers**
-- **db:** Contenedor basado en `postgres:15`. Proporciona la persistencia de datos. Volumen: `db_data`.
-- **rabbit:** Contenedor basado en `rabbitmq:3-management`. Actúa como broker de mensajería (puerto de cliente AMQP 5672 y panel de administración 15672).
-- **api:** Servicio construido a partir del `Dockerfile`. Expone la API HTTP (uvicorn) en el puerto `8000`. Usa variables de entorno desde `.env.example` y depende de `db` y `rabbit`.
-- **worker:** Servicio construido desde el mismo `Dockerfile` (misma imagen), pero se ejecuta con `python worker.py` para procesar tareas en segundo plano. Está desacoplado de la API y se comunica mediante RabbitMQ.
+**Requirements:** Docker and Docker Compose.
+- **Install (Windows):** https://docs.docker.com/desktop/install/windows-install/
+- **Install (macOS):** https://docs.docker.com/desktop/install/mac-install/
+- **Install (Linux):** https://docs.docker.com/engine/install/
+- **Compose install:** https://docs.docker.com/compose/install/
 
-Separación de microservicios en contenedores:
-- La API y el worker se despliegan en contenedores separados aunque puedan compartir la misma imagen de base. Esto permite escalar y desplegar cada microservicio de forma independiente y ejecutar comandos distintos (ej. `uvicorn` vs `python worker.py`).
-- La base de datos y el broker son servicios gestionados por imágenes oficiales y corren en contenedores independientes para mantener separación de responsabilidades.
+## Quick Commands
 
-**Cómo ejecutar (Docker) / How to run (Docker)**
-- Requisitos: `docker` y `docker-compose` instalados.
-- Levantar los servicios:
-
+**Start everything:**
 ```bash
-docker-compose up -d
+docker-compose up --build -d
 ```
 
-- Ver logs:
+**Run unit tests:**
+```bash
+docker-compose exec -it api pytest
+```
 
+**View logs on api:**
 ```bash
 docker-compose logs -f api
+```
+
+**View logs on worker:**
+```bash
 docker-compose logs -f worker
 ```
 
-- Parar y eliminar (incluye volumen si quieres resetear la BD):
-
+**View logs on db:**
 ```bash
-docker-compose down -v
+docker-compose logs -f db
 ```
 
-**Ejecución en desarrollo sin Docker / Local development (venv)**
-- Crear y activar un entorno virtual (Windows PowerShell ejemplo):
-
-```powershell
-python -m venv .venv
-& .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
-
-- Ejecutar la API localmente:
-
+**Refresh containers (rebuild):**
 ```bash
-uvicorn api:app --reload --host 0.0.0.0 --port 8000
+docker-compose up --build -d
 ```
 
-- Ejecutar el worker localmente:
-
+**Stop and remove images:**
 ```bash
-python worker.py
+docker-compose down --rmi all
 ```
 
-**Variables de entorno / Environment variables**
-- Usa el archivo de ejemplo `.env.example` para definir las variables necesarias (conexión a la BD, credenciales de RabbitMQ, etc.). Cuando uses Docker, `docker-compose.yml` carga `env_file: .env.example` para `api` y `worker`.
+## API Usage
 
-**Puertos expuestos / Exposed ports**
-- `8000` — API HTTP
-- `5432` — PostgreSQL (mapeado para acceso local)
-- `5672` — RabbitMQ (AMQP)
-- `15672` — RabbitMQ Management UI
+Open **http://localhost:8000/docs** to access the interactive API interface powered by FastAPI/Swagger UI.
 
-**Estructura del repositorio / Repository structure**
-- `api.py` — Código de la API.
-- `worker.py` — Lógica del trabajador de tareas en segundo plano.
-- `db.py` — Módulo relacionado con la base de datos.
-- `Dockerfile` — Define la imagen usada por `api` y `worker`.
-- `docker-compose.yml` — Orquesta los servicios (db, rabbit, api, worker).
-- `requirements.txt` — Dependencias Python.
+This interface allows you to explore all available endpoints and test them directly from your browser.
 
-**Operaciones útiles / Useful commands**
-- Reconstruir imágenes (después de cambios):
+### Creating Orders
 
-```bash
-docker-compose build --no-cache
-```
+1. On the Swagger UI, find the **POST /orders** endpoint
+2. Click "Try it out"
+3. In the request body, enter your order payload in JSON format:
+   ```json
+   {
+     "customerId": "cust-123",
+     "items": [
+       {"product": "widget", "quantity": 5}
+     ],
+     "total": 99.99
+   }
+   ```
+4. Click "Execute"
+5. You'll receive a response with a `taskId` and `statusUrl` to track the order creation
 
-- Acceder a un shell dentro del contenedor API:
+The order creation is processed asynchronously in the background. Save the `taskId` to check its status.
 
-```bash
-docker-compose exec api sh
-```
+### Checking Task Status
 
-**Notas / Notes**
-- Aunque `api` y `worker` usan la misma imagen como base, cada servicio se ejecuta con un comando distinto — esto permite separar claramente responsabilidades y escalado.
-- Si cambias el esquema de la base de datos considera añadir migraciones y un paso de inicialización.
+1. Find the **GET /tasks/{task_id}** endpoint in Swagger UI
+2. Click "Try it out"
+3. Enter the `taskId` from the previous step
+4. Click "Execute"
+5. Check the response:
+   - **PENDING/IN_PROGRESS:** Task is still being processed
+   - **SUCCESS:** Task completed successfully. For order creation, you'll be redirected to the order details
+   - **FAILED:** Task failed with an error message
 
+### Querying Orders
 
+1. Find the **GET /orders/{order_id}** endpoint
+2. Click "Try it out"
+3. Enter your `order_id`
+4. Click "Execute"
+5. View the complete order details including payload and creation timestamp
 
----
+### Updating Orders
 
+1. Find the **PUT /orders/{order_id}** endpoint
+2. Click "Try it out"
+3. Enter the `order_id` you want to update
+4. Provide the updated payload in the request body
+5. Click "Execute"
+6. Use the returned `taskId` to track the update status
 
+### Deleting Orders
+
+1. Find the **DELETE /orders/{order_id}** endpoint
+2. Click "Try it out"
+3. Enter the `order_id` to delete
+4. Click "Execute"
+5. Use the returned `taskId` to track the deletion status
