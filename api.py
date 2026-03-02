@@ -15,10 +15,12 @@ app = FastAPI()
 
 @app.on_event("startup")
 def startup():
+    """Initialize the database when the application starts."""
     init_db()
 
 
 def _publish(routing_key: str, message: dict):
+    """Publish a persistent JSON message to the configured RabbitMQ exchange."""
     params = pika.URLParameters(RABBIT_URL)
     conn = pika.BlockingConnection(params)
     ch = conn.channel()
@@ -29,6 +31,7 @@ def _publish(routing_key: str, message: dict):
 
 @app.post("/orders", status_code=202)
 def create_order(payload: dict):
+    """Create a background task to create an order and publish the request."""
     task_id = create_task()
     _publish("tasks.createOrder", {"taskId": task_id, "type": "CREATE_ORDER", "payload": payload})
     return {"taskId": task_id, "statusUrl": f"/tasks/{task_id}"}
@@ -36,6 +39,7 @@ def create_order(payload: dict):
 
 @app.put("/orders/{order_id}", status_code=202)
 def update_order(order_id: str, payload: dict):
+    """Create a background task to update an order and publish the request."""
     task_id = create_task()
     _publish("tasks.updateOrder", {"taskId": task_id, "type": "UPDATE_ORDER", "orderId": order_id, "payload": payload})
     return {"taskId": task_id, "statusUrl": f"/tasks/{task_id}"}
@@ -43,6 +47,7 @@ def update_order(order_id: str, payload: dict):
 
 @app.delete("/orders/{order_id}", status_code=202)
 def delete_order(order_id: str):
+    """Create a background task to delete an order and publish the request."""
     task_id = create_task()
     _publish("tasks.deleteOrder", {"taskId": task_id, "type": "DELETE_ORDER", "orderId": order_id})
     return {"taskId": task_id, "statusUrl": f"/tasks/{task_id}"}
@@ -50,6 +55,7 @@ def delete_order(order_id: str):
 
 @app.get("/tasks/{task_id}")
 def get_task_status(task_id: str):
+    """Return the status and result (or error) for a background task."""
     row = get_task(task_id)
     if not row:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -65,6 +71,7 @@ def get_task_status(task_id: str):
 
 @app.get("/orders/{order_id}")
 def get_order_endpoint(order_id: str):
+    """Return the stored order payload for a given `order_id` if present."""
     row = fetch_order(order_id)
     if not row:
         raise HTTPException(status_code=404, detail="Order not found")

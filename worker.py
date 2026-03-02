@@ -13,11 +13,13 @@ ROUTING_KEYS = ["tasks.createOrder", "tasks.updateOrder", "tasks.deleteOrder"]
 
 
 def _handle_create(task_id: str, payload: dict):
+    """Insert a new order and mark the task as COMPLETED."""
     order_id = insert_order(payload)
     set_task(task_id, "COMPLETED", result={"orderId": order_id, "resourceUri": f"/orders/{order_id}"})
 
 
 def _handle_update(task_id: str, order_id: str, payload: dict):
+    """Update an order's payload; mark the task COMPLETED or FAILED."""
     ok = update_order(order_id, payload)
     if not ok:
         set_task(task_id, "FAILED", error=f"Order {order_id} not found or deleted")
@@ -26,6 +28,7 @@ def _handle_update(task_id: str, order_id: str, payload: dict):
 
 
 def _handle_delete(task_id: str, order_id: str):
+    """Soft-delete an order and mark the task COMPLETED or FAILED."""
     ok = soft_delete_order(order_id)
     if not ok:
         set_task(task_id, "FAILED", error=f"Order {order_id} not found or already deleted")
@@ -34,6 +37,7 @@ def _handle_delete(task_id: str, order_id: str):
 
 
 def callback(ch, method, properties, body):
+    """Process a RabbitMQ message, route to the correct handler, and ack."""
     msg = json.loads(body.decode())
     task_id = msg.get("taskId")
     msg_type = msg.get("type")
@@ -59,6 +63,7 @@ def callback(ch, method, properties, body):
 
 
 def main():
+    """Initialize DB, connect to RabbitMQ and start consuming messages."""
     init_db()
     params = pika.URLParameters(RABBIT_URL)
     deadline = time.time() + 30

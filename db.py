@@ -10,6 +10,12 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 
 @contextmanager
 def get_conn():
+    """Context manager returning a new database connection.
+
+    Usage:
+        with get_conn() as conn:
+            ...
+    """
     conn = psycopg.connect(DATABASE_URL)
     try:
         yield conn
@@ -18,6 +24,11 @@ def get_conn():
 
 
 def init_db(timeout: int = 30, delay: float = 1.0):
+    """Create required tables, retrying until the database is ready.
+
+    This ensures the application can call initialization during container
+    startup even if Postgres is still coming online.
+    """
     deadline = time.time() + timeout
     while True:
         try:
@@ -52,6 +63,7 @@ def init_db(timeout: int = 30, delay: float = 1.0):
 
 
 def create_task(conn=None):
+    """Create a new PENDING task and return its generated `task_id`."""
     own = conn is None
     if own:
         conn = psycopg.connect(DATABASE_URL)
@@ -71,6 +83,7 @@ def create_task(conn=None):
 
 
 def set_task(task_id: str, status: str, result=None, error=None):
+    """Update a task's `status`, `result`, and/or `error` by `task_id`."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -81,6 +94,7 @@ def set_task(task_id: str, status: str, result=None, error=None):
 
 
 def get_task(task_id: str):
+    """Return the task row (task_id, status, result, error) or `None` if missing."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT task_id, status, result, error FROM tasks WHERE task_id = %s", (task_id,))
@@ -88,6 +102,7 @@ def get_task(task_id: str):
 
 
 def insert_order(payload: dict):
+    """Insert a new order and return its generated `order_id`."""
     order_id = str(uuid.uuid4())
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -100,6 +115,7 @@ def insert_order(payload: dict):
 
 
 def fetch_order(order_id: str):
+    """Fetch an order row (order_id, payload, created_at, deleted) or `None`."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT order_id, payload, created_at, deleted FROM orders WHERE order_id = %s", (order_id,))
@@ -107,6 +123,7 @@ def fetch_order(order_id: str):
 
 
 def update_order(order_id: str, payload: dict):
+    """Update an existing order's payload. Return True if updated, False if not found."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT order_id FROM orders WHERE order_id = %s AND deleted = FALSE", (order_id,))
@@ -118,6 +135,7 @@ def update_order(order_id: str, payload: dict):
 
 
 def soft_delete_order(order_id: str):
+    """Mark an order as deleted. Return True if marked, False if not found."""
     with get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT order_id FROM orders WHERE order_id = %s AND deleted = FALSE", (order_id,))
