@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 pika
 psycopg[binary]
+pytest
+httpx
