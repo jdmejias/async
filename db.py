@@ -1,11 +1,11 @@
 import os
+import time
+import uuid
+import json
 import psycopg
 from contextlib import contextmanager
-from dotenv import load_dotenv
 
-load_dotenv()
-
-DATABASE_URL = os.environ["DATABASE_URL"]
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 
 @contextmanager
@@ -17,66 +17,112 @@ def get_conn():
         conn.close()
 
 
-def init_db():
-    """Create tables and apply any pending column migrations."""
+def init_db(timeout: int = 30, delay: float = 1.0):
+    deadline = time.time() + timeout
+    while True:
+        try:
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS tasks (
+                            task_id    TEXT PRIMARY KEY,
+                            status     TEXT NOT NULL DEFAULT 'PENDING',
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                            result     JSONB,
+                            error      TEXT
+                        )
+                    """)
+
+                    cur.execute("""
+                        CREATE TABLE IF NOT EXISTS orders (
+                            order_id   TEXT PRIMARY KEY,
+                            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                            payload    JSONB NOT NULL,
+                            deleted    BOOLEAN NOT NULL DEFAULT FALSE
+                        )
+                    """)
+
+                conn.commit()
+            break
+        except psycopg.OperationalError:
+            if time.time() > deadline:
+                raise
+            time.sleep(delay)
+
+
+def create_task(conn=None):
+    own = conn is None
+    if own:
+        conn = psycopg.connect(DATABASE_URL)
+    try:
+        task_id = str(uuid.uuid4())
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO tasks(task_id, status, created_at, updated_at) VALUES (%s, 'PENDING', NOW(), NOW())",
+                (task_id,)
+            )
+        if own:
+            conn.commit()
+        return task_id
+    finally:
+        if own:
+            conn.close()
+
+
+def set_task(task_id: str, status: str, result=None, error=None):
     with get_conn() as conn:
         with conn.cursor() as cur:
-            # ── tasks ────────────────────────────────────────────────────────
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS tasks (
-                    task_id    TEXT        PRIMARY KEY,
-                    status     TEXT        NOT NULL DEFAULT 'PENDING',
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    result     JSONB,
-                    error      TEXT
-                )
-            """)
-            # migrate: add columns that may be missing from older schema
-            for col, definition in [
-                ("created_at", "TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
-                ("updated_at", "TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
-            ]:
-                cur.execute(
-                    f"ALTER TABLE tasks ADD COLUMN IF NOT EXISTS {col} {definition}"
-                )
-            # migrate result column to JSONB if it was created as TEXT
-            cur.execute("""
-                DO $$ BEGIN
-                    IF (SELECT data_type FROM information_schema.columns
-                        WHERE table_name='tasks' AND column_name='result') = 'text' THEN
-                        ALTER TABLE tasks ALTER COLUMN result TYPE JSONB
-                            USING CASE WHEN result IS NULL THEN NULL ELSE result::jsonb END;
-                    END IF;
-                END $$;
-            """)
-
-            # ── orders ───────────────────────────────────────────────────────
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS orders (
-                    order_id   TEXT        PRIMARY KEY,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    payload    JSONB       NOT NULL,
-                    deleted    BOOLEAN     NOT NULL DEFAULT FALSE
-                )
-            """)
-            # migrate: add columns that may be missing from older schema
-            for col, definition in [
-                ("deleted", "BOOLEAN NOT NULL DEFAULT FALSE"),
-                ("created_at", "TIMESTAMPTZ NOT NULL DEFAULT NOW()"),
-            ]:
-                cur.execute(
-                    f"ALTER TABLE orders ADD COLUMN IF NOT EXISTS {col} {definition}"
-                )
-            # migrate payload column to JSONB if it was created as TEXT
-            cur.execute("""
-                DO $$ BEGIN
-                    IF (SELECT data_type FROM information_schema.columns
-                        WHERE table_name='orders' AND column_name='payload') = 'text' THEN
-                        ALTER TABLE orders ALTER COLUMN payload TYPE JSONB
-                            USING CASE WHEN payload IS NULL THEN NULL ELSE payload::jsonb END;
-                    END IF;
-                END $$;
-            """)
-
+            cur.execute(
+                "UPDATE tasks SET status = %s, result = %s, error = %s, updated_at = NOW() WHERE task_id = %s",
+                (status, json.dumps(result) if result is not None else None, error, task_id),
+            )
         conn.commit()
+
+
+def get_task(task_id: str):
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT task_id, status, result, error FROM tasks WHERE task_id = %s", (task_id,))
+            return cur.fetchone()
+
+
+def insert_order(payload: dict):
+    order_id = str(uuid.uuid4())
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO orders(order_id, payload, created_at, deleted) VALUES (%s, %s, NOW(), FALSE)",
+                (order_id, json.dumps(payload)),
+            )
+        conn.commit()
+    return order_id
+
+
+def fetch_order(order_id: str):
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT order_id, payload, created_at, deleted FROM orders WHERE order_id = %s", (order_id,))
+            return cur.fetchone()
+
+
+def update_order(order_id: str, payload: dict):
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT order_id FROM orders WHERE order_id = %s AND deleted = FALSE", (order_id,))
+            if not cur.fetchone():
+                return False
+            cur.execute("UPDATE orders SET payload = %s WHERE order_id = %s", (json.dumps(payload), order_id))
+        conn.commit()
+    return True
+
+
+def soft_delete_order(order_id: str):
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT order_id FROM orders WHERE order_id = %s AND deleted = FALSE", (order_id,))
+            if not cur.fetchone():
+                return False
+            cur.execute("UPDATE orders SET deleted = TRUE WHERE order_id = %s", (order_id,))
+        conn.commit()
+    return True
