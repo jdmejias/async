@@ -1,22 +1,28 @@
-import os
 import json
-import uuid
+import os
+
 import pika
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from db import init_db, create_task, get_task, fetch_order
+from db import create_task, fetch_order, get_task, init_db
 
-RABBIT_URL = os.environ["RABBIT_URL"]
-EXCHANGE = os.environ["EXCHANGE"]
+RABBIT_URL = os.environ.get("RABBIT_URL")
+EXCHANGE = os.environ.get("EXCHANGE", "orders")
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 app = FastAPI()
 
 
 @app.on_event("startup")
 def startup():
-    """Initialize the database when the application starts."""
-    init_db()
+    """Initialize the database when the application starts.
+
+    Skip initialization when `DATABASE_URL` is not set so tests can import
+    the app without requiring full runtime environment variables.
+    """
+    if DATABASE_URL:
+        init_db()
 
 
 def _publish(routing_key: str, message: dict):
@@ -25,7 +31,12 @@ def _publish(routing_key: str, message: dict):
     conn = pika.BlockingConnection(params)
     ch = conn.channel()
     ch.exchange_declare(exchange=EXCHANGE, exchange_type="direct", durable=True)
-    ch.basic_publish(exchange=EXCHANGE, routing_key=routing_key, body=json.dumps(message).encode(), properties=pika.BasicProperties(delivery_mode=2))
+    ch.basic_publish(
+        exchange=EXCHANGE,
+        routing_key=routing_key,
+        body=json.dumps(message).encode(),
+        properties=pika.BasicProperties(delivery_mode=2),
+    )
     conn.close()
 
 

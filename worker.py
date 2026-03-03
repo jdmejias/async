@@ -1,13 +1,14 @@
 import json
 import os
 import time
+
 import pika
 
-from db import init_db, set_task, insert_order, update_order, soft_delete_order
+from db import init_db, insert_order, set_task, soft_delete_order, update_order
 
-RABBIT_URL = os.environ["RABBIT_URL"]
-EXCHANGE = os.environ["EXCHANGE"]
-QUEUE = os.environ["QUEUE"]
+RABBIT_URL = os.environ.get("RABBIT_URL")
+EXCHANGE = os.environ.get("EXCHANGE", "orders")
+QUEUE = os.environ.get("QUEUE", "orders.queue")
 
 ROUTING_KEYS = ["tasks.createOrder", "tasks.updateOrder", "tasks.deleteOrder"]
 

@@ -1,9 +1,10 @@
+import json
 import os
 import time
 import uuid
-import json
-import psycopg
 from contextlib import contextmanager
+
+import psycopg
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
@@ -72,7 +73,7 @@ def create_task(conn=None):
         with conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO tasks(task_id, status, created_at, updated_at) VALUES (%s, 'PENDING', NOW(), NOW())",
-                (task_id,)
+                (task_id,),
             )
         if own:
             conn.commit()

@@ -9,6 +9,17 @@
 - **Install (Linux):** https://docs.docker.com/engine/install/
 - **Compose install:** https://docs.docker.com/compose/install/
 
+## Deliverables
+
+- ✅ GitHub repository with source code
+- ✅ Project `README.md` in markdown format
+- ✅ Unit tests (`tests/`)
+- ✅ Execution examples (Docker commands and API usage)
+- ✅ Static code analysis with Ruff (`.ruff.toml`)
+- ✅ Swagger API docs at `http://localhost:8000/docs`
+- ✅ CI workflow for lint + format + tests (`.github/workflows/lint.yml`)
+- ℹ️ Ready to run on EC2 with Docker + Docker Compose installed
+
 ## Quick Commands
 
 **Start everything:**
@@ -19,6 +30,21 @@ docker-compose up --build -d
 **Run unit tests:**
 ```bash
 docker-compose exec -it api pytest
+```
+
+**Run Ruff lint check:**
+```bash
+ruff check .
+```
+
+**Run Ruff format check:**
+```bash
+ruff format --check .
+```
+
+**Apply Ruff format:**
+```bash
+ruff format .
 ```
 
 **View logs on api:**
@@ -45,6 +71,36 @@ docker-compose up --build -d
 ```bash
 docker-compose down --rmi all
 ```
+
+## Ruff and Pre-Commit Setup
+
+Install tools locally with pip:
+
+```bash
+pip install ruff pre-commit
+```
+
+Enable git hooks:
+
+```bash
+pre-commit install
+```
+
+Run hooks manually on all files:
+
+```bash
+pre-commit run --all-files
+```
+
+The project includes:
+- Ruff configuration: `.ruff.toml`
+- Pre-commit hooks: `.pre-commit-config.yaml`
+- GitHub Actions workflow: `.github/workflows/lint.yml`
+
+CI executes:
+- `ruff check .`
+- `ruff format --check .`
+- `pytest`
 
 ## API Usage
 
