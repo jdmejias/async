@@ -162,3 +162,55 @@ The order creation is processed asynchronously in the background. Save the `task
 3. Enter the `order_id` to delete
 4. Click "Execute"
 5. Use the returned `taskId` to track the deletion status
+
+## Deploy en EC2
+
+Crear EC2 Ubuntu 22.04.
+
+Security Group inbound: 22 (SSH), 8000 (API), 80 opcional.
+
+Conectarse:
+
+```bash
+chmod 400 jhon0303.pem
+
+ssh -i jhon0303.pem ubuntu@<IP>
+```
+
+Instalar Docker:
+
+```bash
+sudo apt update -y
+
+sudo apt install -y docker.io docker-compose-plugin unzip
+
+sudo systemctl enable --now docker
+
+sudo usermod -aG docker $USER (relogin)
+```
+
+Subir zip:
+
+```bash
+scp -i jhon0303.pem async-demo.zip ubuntu@<IP>:/home/ubuntu/
+```
+
+En EC2:
+
+```bash
+unzip async-demo.zip
+
+cd async-demo
+
+cp .env.example .env
+
+docker compose up -d --build
+```
+
+Verificar:
+
+```bash
+docker ps
+```
+
+Abrir http://<IP>:8000/docs
