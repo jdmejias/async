@@ -24,12 +24,12 @@
 
 **Start everything:**
 ```bash
-docker-compose up --build -d
+sudo docker-compose up --build -d
 ```
 
 **Run unit tests:**
 ```bash
-docker-compose exec -it api pytest
+sudo docker-compose exec -it api pytest
 ```
 
 **Run Ruff lint check:**
@@ -49,27 +49,27 @@ ruff format .
 
 **View logs on api:**
 ```bash
-docker-compose logs -f api
+sudo docker-compose logs -f api
 ```
 
 **View logs on worker:**
 ```bash
-docker-compose logs -f worker
+sudo docker-compose logs -f worker
 ```
 
 **View logs on db:**
 ```bash
-docker-compose logs -f db
+sudo docker-compose logs -f db
 ```
 
 **Refresh containers (rebuild):**
 ```bash
-docker-compose up --build -d
+sudo docker-compose up --build -d
 ```
 
 **Stop and remove images:**
 ```bash
-docker-compose down --rmi all
+sudo docker-compose down --rmi all
 ```
 
 ## Ruff and Pre-Commit Setup

@@ -41,5 +41,16 @@ services:
       - rabbit
     command: python worker.py
 
+  synthetic_producer:
+    build: .
+    env_file:
+      - .env.example
+    depends_on:
+      - api
+    environment:
+      API_BASE_URL: http://api:8000
+      PRODUCER_INTERVAL_SECONDS: 10
+    command: python synthetic_producer.py
+
 volumes:
   db_data:
