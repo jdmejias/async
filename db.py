@@ -35,6 +35,9 @@ def init_db(timeout: int = 30, delay: float = 1.0):
         try:
             with get_conn() as conn:
                 with conn.cursor() as cur:
+                    # Serialize startup DDL across services (api/worker) to avoid
+                    # concurrent CREATE TABLE races on first boot.
+                    cur.execute("SELECT pg_advisory_lock(hashtext('async_init_db_v1'))")
                     cur.execute("""
                         CREATE TABLE IF NOT EXISTS tasks (
                             task_id    TEXT PRIMARY KEY,
@@ -54,6 +57,7 @@ def init_db(timeout: int = 30, delay: float = 1.0):
                             deleted    BOOLEAN NOT NULL DEFAULT FALSE
                         )
                     """)
+                    cur.execute("SELECT pg_advisory_unlock(hashtext('async_init_db_v1'))")
 
                 conn.commit()
             break
