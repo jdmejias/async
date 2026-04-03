@@ -34,6 +34,13 @@ Thumbs.db
 *.log
 .coverage
 
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+
 # Docker
 docker-compose.override.yml
 
