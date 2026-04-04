@@ -8,11 +8,11 @@ variable "subnet_id" {
 }
 
 variable "api_subnet_a_id" {
-  description = "Public subnet in us-east-1a for the first API instance and the load balancer"
+  default = "subnet-02a6c2f22030aa8cb"
 }
 
 variable "api_subnet_b_id" {
-  description = "Public subnet in us-east-1b for the second API instance and the load balancer"
+  default = "subnet-0b066115f3b0191eb"
 }
 
 variable "ami_id" {
