@@ -5,7 +5,7 @@ sudo dnf install -y python3 python3-pip git
 
 APP_DIR="/home/ec2-user/async"
 REPO_URL="${repo_url}"
-API_IP="${api_ip}"
+API_BASE_URL="${api_base_url}"
 
 if [ ! -d "$APP_DIR" ]; then
   git clone "$REPO_URL" "$APP_DIR"
@@ -16,5 +16,5 @@ cd "$APP_DIR" || exit 1
 pip3 install -r requirements.txt
 
 pkill -f "python3 synthetic_producer.py" >/dev/null 2>&1 || true
-nohup env API_BASE_URL="http://$API_IP:8000" PRODUCER_INTERVAL_SECONDS="10" \
+nohup env API_BASE_URL="$API_BASE_URL" PRODUCER_INTERVAL_SECONDS="10" \
   python3 synthetic_producer.py > /home/ec2-user/synthetic_producer.log 2>&1 &

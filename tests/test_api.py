@@ -57,3 +57,13 @@ def test_get_order_endpoint(monkeypatch):
     r = client.get("/orders/o1")
     assert r.status_code == 200
     assert r.json()["orderId"] == "o1"
+
+
+def test_list_orders(monkeypatch):
+    """Verify listing orders returns the whole collection."""
+    monkeypatch.setattr(api, "fetch_orders", lambda: [("o1", {"a": 1}, None, False)])
+    r = client.get("/orders")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["count"] == 1
+    assert body["orders"][0]["orderId"] == "o1"

@@ -4,8 +4,18 @@ output "rabbitmq_public_ip" {
 }
 
 output "api_public_ip" {
-  value = aws_instance.api_server.public_ip
-  description = "IP pública del servidor API (Docker)"
+  value = [for instance in aws_instance.api_server : instance.public_ip]
+  description = "IPs públicas de las instancias API"
+}
+
+output "api_load_balancer_ips" {
+  value       = [for eip in aws_eip.api_lb : eip.public_ip]
+  description = "IPs públicas fijas del Network Load Balancer"
+}
+
+output "api_load_balancer_dns_name" {
+  value       = aws_lb.api_lb.dns_name
+  description = "DNS del Network Load Balancer"
 }
 
 output "worker_public_ip" {

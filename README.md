@@ -1,6 +1,7 @@
 # IOT Async Request Reply
 
 Minimal demo of an asynchronous request-reply pattern with an HTTP API, background worker, PostgreSQL, RabbitMQ and a synthetic producer.
+The API now runs on two EC2 instances behind a Network Load Balancer with static IPs.
 
 ## Requirements
 
@@ -26,14 +27,22 @@ Use the compose service that already mounts the AWS credentials volume:
 docker compose run --rm --entrypoint sh awscli
 ```
 
-Inside that shell, check the credentials file and configure AWS if needed:
+Inside your AWS browser lab console get the credentials:
 
 ```sh
 cat .aws/credentials
-aws configure set aws_access_key_id YOUR_ACCESS_KEY_ID --profile default
-aws configure set aws_secret_access_key YOUR_SECRET_ACCESS_KEY --profile default
-aws configure set aws_session_token YOUR_SESSION_TOKEN --profile default
-aws configure set region us-east-1 --profile default
+```
+
+Also get the vpc info:
+
+```sh
+aws ec2 describe-subnets --query "Subnets[*].[SubnetId, VpcId, AvailabilityZone]" --output text
+```
+
+Inside your terminal in your computer, check the credentials file and configure AWS if needed:
+
+```sh
+aws configure 
 ```
 
 If the session token is missing, you must add it with:
@@ -44,7 +53,9 @@ aws configure set aws_session_token YOUR_SESSION_TOKEN --profile default
 
 ### Edit Terraform variables
 
-Keep the values in [terraform/variables.tf](terraform/variables.tf) aligned with the VPC, subnet, key pair and other values from your own Amazon account before applying Terraform.
+Keep the values in [terraform/variables.tf](terraform/variables.tf) aligned with the VPC, the two public subnets for `us-east-1a` and `us-east-1b`, the key pair and the rest of the values from your Amazon account before applying Terraform.
+
+The load balancer exposes static public IPs through the outputs in Terraform. Use one of those IPs in the browser as `http://<load-balancer-ip>/docs`.
 
 ### Run Terraform from the project root
 

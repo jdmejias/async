@@ -5,7 +5,7 @@ import pika
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from db import create_task, fetch_order, get_task, init_db
+from db import create_task, fetch_order, fetch_orders, get_task, init_db
 
 RABBIT_URL = os.environ.get("RABBIT_URL")
 EXCHANGE = os.environ.get("EXCHANGE", "orders")
@@ -46,6 +46,23 @@ def create_order(payload: dict):
     task_id = create_task()
     _publish("tasks.createOrder", {"taskId": task_id, "type": "CREATE_ORDER", "payload": payload})
     return {"taskId": task_id, "statusUrl": f"/tasks/{task_id}"}
+
+
+@app.get("/orders")
+def list_orders():
+    """Return all orders stored in the database."""
+    rows = fetch_orders()
+    orders = []
+    for order_id, payload, created_at, deleted in rows:
+        orders.append(
+            {
+                "orderId": order_id,
+                "payload": payload,
+                "createdAt": created_at.isoformat() if created_at else None,
+                "deleted": deleted,
+            }
+        )
+    return {"orders": orders, "count": len(orders)}
 
 
 @app.put("/orders/{order_id}", status_code=202)

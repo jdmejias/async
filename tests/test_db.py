@@ -13,12 +13,16 @@ class FakeCursor:
     def __init__(self):
         self.queries = []
         self.fetchone_result = None
+        self.fetchall_result = []
 
     def execute(self, sql, params=None):
         self.queries.append((sql.strip(), params))
 
     def fetchone(self):
         return self.fetchone_result
+
+    def fetchall(self):
+        return self.fetchall_result
 
     def __enter__(self):
         return self
@@ -96,3 +100,14 @@ def test_order_crud(monkeypatch):
     ok = db.soft_delete_order("o2")
     assert ok is True
     assert any("UPDATE orders SET deleted" in q[0] for q in cur.queries)
+
+
+def test_fetch_orders(monkeypatch):
+    """Verify fetch_orders returns all rows ordered by creation time."""
+    cur = FakeCursor()
+    cur.fetchall_result = [("o1", {"a": 1}, None, False)]
+    conn = FakeConn(cur)
+    monkeypatch.setattr(db.psycopg, "connect", lambda url=None: conn)
+
+    rows = db.fetch_orders()
+    assert rows == cur.fetchall_result

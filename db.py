@@ -127,6 +127,14 @@ def fetch_order(order_id: str):
             return cur.fetchone()
 
 
+def fetch_orders():
+    """Fetch all order rows ordered by creation time."""
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT order_id, payload, created_at, deleted FROM orders ORDER BY created_at ASC")
+            return cur.fetchall()
+
+
 def update_order(order_id: str, payload: dict):
     """Update an existing order's payload. Return True if updated, False if not found."""
     with get_conn() as conn:
