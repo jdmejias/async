@@ -24,7 +24,7 @@ def get_conn():
         conn.close()
 
 
-def init_db(timeout: int = 30, delay: float = 1.0):
+def init_db(timeout: int = 300, delay: float = 1.0):
     """Create required tables, retrying until the database is ready.
 
     This ensures the application can call initialization during container

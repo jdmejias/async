@@ -67,7 +67,7 @@ def main():
     """Initialize DB, connect to RabbitMQ and start consuming messages."""
     init_db()
     params = pika.URLParameters(RABBIT_URL)
-    deadline = time.time() + 30
+    deadline = time.time() + 300
     while True:
         try:
             connection = pika.BlockingConnection(params)

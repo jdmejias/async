@@ -24,4 +24,4 @@ EOF
 pip3 install -r requirements.txt
 
 pkill -f "python3 worker.py" >/dev/null 2>&1 || true
-nohup env $(cat .env.aws | xargs) python3 worker.py > /home/ec2-user/worker.log 2>&1 &
+nohup env $(cat .env.aws | xargs) python3 -u worker.py > /home/ec2-user/worker.log 2>&1 &

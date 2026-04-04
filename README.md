@@ -1,216 +1,68 @@
-**IOT Async Request Reply**
+# IOT Async Request Reply
 
-- **Authors:** Nestor Ortiz, Jhon Mejías
-- **Description:** Minimal demo of an asynchronous request–reply pattern: an HTTP API, background worker, PostgreSQL and RabbitMQ.
+Minimal demo of an asynchronous request-reply pattern with an HTTP API, background worker, PostgreSQL, RabbitMQ and a synthetic producer.
 
-**Requirements:** Docker and Docker Compose.
-- **Install (Windows):** https://docs.docker.com/desktop/install/windows-install/
-- **Install (macOS):** https://docs.docker.com/desktop/install/mac-install/
-- **Install (Linux):** https://docs.docker.com/engine/install/
-- **Compose install:** https://docs.docker.com/compose/install/
+## Requirements
 
-## Deliverables
-
-- ✅ GitHub repository with source code
-- ✅ Project `README.md` in markdown format
-- ✅ Unit tests (`tests/`)
-- ✅ Execution examples (Docker commands and API usage)
-- ✅ Static code analysis with Ruff (`.ruff.toml`)
-- ✅ Swagger API docs at `http://localhost:8000/docs`
-- ✅ CI workflow for lint + format + tests (`.github/workflows/lint.yml`)
-- ℹ️ Ready to run on EC2 with Docker + Docker Compose installed
+- Docker and Docker Compose
+- Python 3.11+ if you run tests locally
+- AWS credentials configured if you use the Terraform deployment
 
 ## Quick Commands
 
-**Start everything:**
-```bash
-sudo docker-compose up --build -d
-```
+### Run unit tests
 
-**Run unit tests:**
-```bash
-sudo docker-compose exec -it api pytest
-```
-
-**Run Ruff lint check:**
-```bash
-ruff check .
-```
-
-**Run Ruff format check:**
-```bash
-ruff format --check .
-```
-
-**Apply Ruff format:**
-```bash
-ruff format .
-```
-
-**View logs on api:**
-```bash
-sudo docker-compose logs -f api
-```
-
-**View logs on worker:**
-```bash
-sudo docker-compose logs -f worker
-```
-
-**View logs on db:**
-```bash
-sudo docker-compose logs -f db
-```
-
-**Refresh containers (rebuild):**
-```bash
-sudo docker-compose up --build -d
-```
-
-**Stop and remove images:**
-```bash
-sudo docker-compose down --rmi all
-```
-
-## Ruff and Pre-Commit Setup
-
-Install tools locally with pip:
+From the root of the project:
 
 ```bash
-pip install ruff pre-commit
+docker compose run --rm api pytest
 ```
 
-Enable git hooks:
+### Enter the AWS CLI container
+
+Use the compose service that already mounts the AWS credentials volume:
 
 ```bash
-pre-commit install
+docker compose run --rm --entrypoint sh awscli
 ```
 
-Run hooks manually on all files:
+Inside that shell, check the credentials file and configure AWS if needed:
+
+```sh
+cat .aws/credentials
+aws configure set aws_access_key_id YOUR_ACCESS_KEY_ID --profile default
+aws configure set aws_secret_access_key YOUR_SECRET_ACCESS_KEY --profile default
+aws configure set aws_session_token YOUR_SESSION_TOKEN --profile default
+aws configure set region us-east-1 --profile default
+```
+
+If the session token is missing, you must add it with:
+
+```sh
+aws configure set aws_session_token YOUR_SESSION_TOKEN --profile default
+```
+
+### Edit Terraform variables
+
+Keep the values in [terraform/variables.tf](terraform/variables.tf) aligned with the VPC, subnet, key pair and other values from your own Amazon account before applying Terraform.
+
+### Run Terraform from the project root
 
 ```bash
-pre-commit run --all-files
+docker run --rm --entrypoint /bin/sh -v "${PWD}:/workspace" -v async_aws_credentials:/root/.aws -w /workspace/terraform hashicorp/terraform:1.8.5 -lc "terraform init && terraform plan -out=project.tfplan && terraform apply project.tfplan"
 ```
 
-The project includes:
-- Ruff configuration: `.ruff.toml`
-- Pre-commit hooks: `.pre-commit-config.yaml`
-- GitHub Actions workflow: `.github/workflows/lint.yml`
-
-CI executes:
-- `ruff check .`
-- `ruff format --check .`
-- `pytest`
-
-## API Usage
-
-Open **http://localhost:8000/docs** to access the interactive API interface powered by FastAPI/Swagger UI.
-
-This interface allows you to explore all available endpoints and test them directly from your browser.
-
-### Creating Orders
-
-1. On the Swagger UI, find the **POST /orders** endpoint
-2. Click "Try it out"
-3. In the request body, enter your order payload in JSON format:
-   ```json
-   {
-     "customerId": "cust-123",
-     "items": [
-       {"product": "widget", "quantity": 5}
-     ],
-     "total": 99.99
-   }
-   ```
-4. Click "Execute"
-5. You'll receive a response with a `taskId` and `statusUrl` to track the order creation
-
-The order creation is processed asynchronously in the background. Save the `taskId` to check its status.
-
-### Checking Task Status
-
-1. Find the **GET /tasks/{task_id}** endpoint in Swagger UI
-2. Click "Try it out"
-3. Enter the `taskId` from the previous step
-4. Click "Execute"
-5. Check the response:
-   - **PENDING/IN_PROGRESS:** Task is still being processed
-   - **SUCCESS:** Task completed successfully. For order creation, you'll be redirected to the order details
-   - **FAILED:** Task failed with an error message
-
-### Querying Orders
-
-1. Find the **GET /orders/{order_id}** endpoint
-2. Click "Try it out"
-3. Enter your `order_id`
-4. Click "Execute"
-5. View the complete order details including payload and creation timestamp
-
-### Updating Orders
-
-1. Find the **PUT /orders/{order_id}** endpoint
-2. Click "Try it out"
-3. Enter the `order_id` you want to update
-4. Provide the updated payload in the request body
-5. Click "Execute"
-6. Use the returned `taskId` to track the update status
-
-### Deleting Orders
-
-1. Find the **DELETE /orders/{order_id}** endpoint
-2. Click "Try it out"
-3. Enter the `order_id` to delete
-4. Click "Execute"
-5. Use the returned `taskId` to track the deletion status
-
-## Deploy en EC2
-
-Crear EC2 Ubuntu 22.04.
-
-Security Group inbound: 22 (SSH), 8000 (API), 80 opcional.
-
-Conectarse:
+### Destroy Terraform resources from the project root
 
 ```bash
-chmod 400 jhon0303.pem
-
-ssh -i jhon0303.pem ubuntu@<IP>
+docker run --rm --entrypoint /bin/sh -v "${PWD}:/workspace" -v async_aws_credentials:/root/.aws -w /workspace/terraform hashicorp/terraform:1.8.5 -lc "terraform init && terraform destroy -auto-approve"
 ```
 
-Instalar Docker:
+### Useful local commands
 
 ```bash
-sudo apt update -y
-
-sudo apt install -y docker.io docker-compose-plugin unzip
-
-sudo systemctl enable --now docker
-
-sudo usermod -aG docker $USER (relogin)
+docker compose up --build -d
+docker compose logs -f api
+docker compose logs -f worker
+docker compose down
 ```
-
-Subir zip:
-
-```bash
-scp -i jhon0303.pem async-demo.zip ubuntu@<IP>:/home/ubuntu/
-```
-
-En EC2:
-
-```bash
-unzip async-demo.zip
-
-cd async-demo
-
-cp .env.example .env
-
-docker compose up -d --build
-```
-
-Verificar:
-
-```bash
-docker ps
-```
-
-Abrir http://<IP>:8000/docs
