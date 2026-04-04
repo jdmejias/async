@@ -1,5 +1,6 @@
 import json
 import os
+import socket
 
 import pika
 from fastapi import FastAPI, HTTPException
@@ -12,6 +13,29 @@ EXCHANGE = os.environ.get("EXCHANGE", "orders")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 app = FastAPI()
+
+
+def _get_instance_identity():
+    """Return the hostname and non-loopback IPv4 addresses for this instance."""
+    hostname = socket.gethostname()
+    ips = []
+    try:
+        for info in socket.getaddrinfo(hostname, None, family=socket.AF_INET):
+            ip = info[4][0]
+            if not ip.startswith("127.") and ip not in ips:
+                ips.append(ip)
+    except socket.gaierror:
+        pass
+
+    if not ips:
+        try:
+            fallback_ip = socket.gethostbyname(hostname)
+            if not fallback_ip.startswith("127."):
+                ips.append(fallback_ip)
+        except socket.gaierror:
+            pass
+
+    return hostname, ips
 
 
 @app.on_event("startup")
@@ -63,6 +87,17 @@ def list_orders():
             }
         )
     return {"orders": orders, "count": len(orders)}
+
+
+@app.get("/whoami")
+def whoami():
+    """Return the instance identity so load-balanced requests can be traced."""
+    hostname, ips = _get_instance_identity()
+    return {
+        "hostname": hostname,
+        "ips": ips,
+        "primaryIp": ips[0] if ips else None,
+    }
 
 
 @app.put("/orders/{order_id}", status_code=202)

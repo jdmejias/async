@@ -67,3 +67,13 @@ def test_list_orders(monkeypatch):
     body = r.json()
     assert body["count"] == 1
     assert body["orders"][0]["orderId"] == "o1"
+
+
+def test_whoami(monkeypatch):
+    """Verify the API exposes the current instance identity."""
+    monkeypatch.setattr(api, "_get_instance_identity", lambda: ("ip-10-0-1-10", ["10.0.1.10"]))
+    r = client.get("/whoami")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["hostname"] == "ip-10-0-1-10"
+    assert body["primaryIp"] == "10.0.1.10"
