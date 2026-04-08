@@ -1,6 +1,7 @@
 import boto3
 from botocore.exceptions import ClientError
 
+
 def get_ssm_parameter(name: str, default: str = None) -> str:
     """
     Consulta un parámetro del Parameter Store de AWS.
@@ -18,8 +19,5 @@ def get_ssm_parameter(name: str, default: str = None) -> str:
 
 
 if __name__ == "__main__":
-    rabbitmq_ip = get_ssm_parameter(
-        name="/message-queue/dev/rabbitmq/public_ip",
-        default="localhost"
-    )
+    rabbitmq_ip = get_ssm_parameter(name="/message-queue/dev/rabbitmq/public_ip", default="localhost")
     print(f"RabbitMQ IP: {rabbitmq_ip}")

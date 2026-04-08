@@ -19,6 +19,23 @@ From the root of the project:
 docker compose run --rm api pytest
 ```
 
+### Run Ruff (lint and format)
+
+If you run commands locally:
+
+```bash
+python -m pip install ruff
+python -m ruff check .
+python -m ruff format --check .
+```
+
+Apply automatic fixes:
+
+```bash
+python -m ruff check . --fix
+python -m ruff format .
+```
+
 ### Enter the AWS CLI container
 
 Use the compose service that already mounts the AWS credentials volume:
